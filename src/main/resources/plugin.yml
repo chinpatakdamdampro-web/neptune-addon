@@ -1,0 +1,19 @@
+name: SparkElo
+version: 1.0.0
+main: dev.spark.elo.SparkElo
+api-version: '1.21'
+author: SparkElo
+
+depend:
+  - Neptune
+
+commands:
+  spark:
+    description: SparkElo admin commands
+    usage: /spark setelo <player> <amount>
+    permission: spark.admin
+
+permissions:
+  spark.admin:
+    description: Access to /spark admin commands
+    default: op
