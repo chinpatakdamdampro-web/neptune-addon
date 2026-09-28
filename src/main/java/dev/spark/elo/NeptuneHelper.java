@@ -60,10 +60,12 @@ public class NeptuneHelper {
         IGameData gameData = profile.getGameData();
 
         // 1. Set ELO on every kit and refresh its division.
+        // Both setElo and updateDivision are called via reflection because
+        // the exact API surface varies between Neptune builds.
         for (Map.Entry<?, IKitData> entry : gameData.getKitData().entrySet()) {
             IKitData kd = entry.getValue();
-            kd.setElo(amount);          // IKitData.setElo — in API interface ✓
-            reflectVoid(kd, "updateDivision"); // KitData#updateDivision — not in API
+            reflectWithInt(kd, "setElo", amount);
+            reflectVoid(kd, "updateDivision");
         }
 
         // 2. Recalculate GlobalStats (averages all kit ELOs → sets global division).
@@ -86,6 +88,21 @@ public class NeptuneHelper {
     // -------------------------------------------------------------------------
     // Reflection helpers
     // -------------------------------------------------------------------------
+
+    /**
+     * Calls a public single-int-arg method on {@code target} by name.
+     */
+    private void reflectWithInt(Object target, String methodName, int value) {
+        try {
+            Method m = target.getClass().getMethod(methodName, int.class);
+            m.invoke(target, value);
+        } catch (NoSuchMethodException e) {
+            log.warning("[SparkElo] Method '" + methodName + "(int)' not found on "
+                    + target.getClass().getName() + " — Neptune version mismatch?");
+        } catch (Exception e) {
+            log.warning("[SparkElo] Reflection error calling '" + methodName + "': " + e.getMessage());
+        }
+    }
 
     /**
      * Calls a public no-arg void (or boolean) method on {@code target} by name.
