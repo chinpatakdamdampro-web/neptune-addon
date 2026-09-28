@@ -1,6 +1,5 @@
 package dev.spark.elo;
 
-import dev.lrxh.api.profile.IProfile;
 import org.bukkit.Bukkit;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.command.Command;
@@ -70,56 +69,55 @@ public class SparkCommand implements CommandExecutor, TabCompleter {
             return;
         }
 
-        // --- Online path ---
+        // Resolve the target — works for both online and offline players.
+        // For online players, Neptune's getProfile(UUID) returns immediately from
+        // its in-memory cache (no DB round-trip). For offline players it goes to
+        // the database. Either way we use the same async path so we never touch
+        // getCachedProfile(), which is absent from some Neptune builds.
         Player onlineTarget = Bukkit.getPlayer(targetName);
-        if (onlineTarget != null) {
-            IProfile profile = neptune.getCached(onlineTarget.getUniqueId());
-            if (profile == null) {
-                sender.sendMessage("§cNeptune has no profile loaded for §f" + onlineTarget.getName()
-                        + "§c. Try again in a moment.");
-                return;
-            }
-            String division = neptune.applyElo(profile, amount);
-            sender.sendMessage("§aSet ELO to §f" + amount
-                    + " §afor §f" + onlineTarget.getName()
-                    + " §a→ division: §f" + division);
-            onlineTarget.sendMessage("§aYour ELO has been set to §f" + amount
-                    + " §a(§f" + division + "§a) by an admin.");
-            return;
-        }
 
-        // --- Offline path ---
         @SuppressWarnings("deprecation")
-        OfflinePlayer offlineTarget = Bukkit.getOfflinePlayer(targetName);
+        OfflinePlayer offlineTarget = onlineTarget != null
+                ? onlineTarget
+                : Bukkit.getOfflinePlayer(targetName);
 
-        // getOfflinePlayer() with a name that has never played returns a dummy with
-        // hasPlayedBefore() == false.
-        if (!offlineTarget.hasPlayedBefore()) {
+        if (!offlineTarget.hasPlayedBefore() && onlineTarget == null) {
             sender.sendMessage("§cPlayer §f'" + targetName + "'§c has never joined this server.");
             return;
         }
 
         UUID uuid = offlineTarget.getUniqueId();
         String resolvedName = offlineTarget.getName() != null ? offlineTarget.getName() : targetName;
+        boolean isOnline = onlineTarget != null;
 
-        sender.sendMessage("§eLoading offline profile for §f" + resolvedName + "§e, please wait…");
+        if (!isOnline) {
+            sender.sendMessage("§eLoading offline profile for §f" + resolvedName + "§e, please wait…");
+        }
 
         int finalAmount = amount;
         neptune.loadProfile(uuid).thenAcceptAsync(profile -> {
             if (profile == null) {
-                // Schedule message back to the main thread
                 scheduleSync(() -> sender.sendMessage(
                         "§cCould not load Neptune profile for §f" + resolvedName + "§c."));
                 return;
             }
+
             String division = neptune.applyElo(profile, finalAmount);
-            scheduleSync(() -> sender.sendMessage(
-                    "§aSet ELO to §f" + finalAmount
-                    + " §afor offline player §f" + resolvedName
-                    + " §a→ division: §f" + division));
+
+            scheduleSync(() -> {
+                sender.sendMessage("§aSet ELO to §f" + finalAmount
+                        + " §afor §f" + resolvedName
+                        + " §a→ division: §f" + division);
+
+                // Notify the player in-game if they are online.
+                if (isOnline && onlineTarget.isOnline()) {
+                    onlineTarget.sendMessage("§aYour ELO has been set to §f" + finalAmount
+                            + " §a(§f" + division + "§a) by an admin.");
+                }
+            });
         }).exceptionally(ex -> {
             scheduleSync(() -> sender.sendMessage(
-                    "§cAn error occurred loading the profile: " + ex.getMessage()));
+                    "§cAn error occurred: " + ex.getMessage()));
             plugin.getLogger().severe("[SparkElo] Error loading profile for " + resolvedName + ": " + ex);
             return null;
         });
