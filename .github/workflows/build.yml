@@ -23,6 +23,19 @@ jobs:
           distribution: 'temurin'
           cache: 'maven'
 
+      # Register the Neptune JAR from libs/ into the local Maven cache so
+      # pom.xml can reference it as dev.lrxh:neptune:local.
+      - name: Install Neptune JAR from libs/
+        run: |
+          mvn install:install-file \
+            -Dfile=libs/$(ls libs/ | grep -i neptune | head -1) \
+            -DgroupId=dev.lrxh \
+            -DartifactId=neptune \
+            -Dversion=local \
+            -Dpackaging=jar \
+            -DgeneratePom=true \
+            --no-transfer-progress
+
       - name: Build with Maven
         run: mvn clean package --no-transfer-progress
 
