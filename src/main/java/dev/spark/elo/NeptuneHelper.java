@@ -34,17 +34,11 @@ public class NeptuneHelper {
     // -------------------------------------------------------------------------
 
     /**
-     * Returns the cached in-memory profile for an online player, or null if
-     * Neptune has not loaded one.
-     */
-    public IProfile getCached(UUID uuid) {
-        IProfileService svc = NeptuneAPIProvider.getAPI().getProfileService();
-        return svc.getCachedProfile(uuid);
-    }
-
-    /**
-     * Loads the profile from the database (or returns the cached one if already
-     * loaded). Safe to call for offline players.
+     * Loads the profile for any player — online or offline.
+     * For online players Neptune resolves this immediately from its in-memory
+     * cache; for offline players it goes to the database.
+     * We use this for both paths to avoid getCachedProfile(), which does not
+     * exist in all Neptune builds.
      */
     public CompletableFuture<IProfile> loadProfile(UUID uuid) {
         IProfileService svc = NeptuneAPIProvider.getAPI().getProfileService();
