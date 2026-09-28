@@ -21,10 +21,6 @@
             <id>papermc</id>
             <url>https://repo.papermc.io/repository/maven-public/</url>
         </repository>
-        <repository>
-            <id>jitpack</id>
-            <url>https://jitpack.io</url>
-        </repository>
     </repositories>
 
     <dependencies>
@@ -37,14 +33,13 @@
         </dependency>
 
         <!--
-            Neptune API jar only — gives us IProfile, IKitData, IGameData,
-            IGlobalStats, IKit, NeptuneAPIProvider, etc.
-            The Plugin jar is provided at runtime by the server.
+            Neptune — installed from libs/ before the build runs.
+            See the "Install Neptune JAR" step in .github/workflows/build.yml.
         -->
         <dependency>
-            <groupId>com.github.Solara-Development.Neptune</groupId>
-            <artifactId>API</artifactId>
-            <version>master-SNAPSHOT</version>
+            <groupId>dev.lrxh</groupId>
+            <artifactId>neptune</artifactId>
+            <version>local</version>
             <scope>provided</scope>
         </dependency>
     </dependencies>
